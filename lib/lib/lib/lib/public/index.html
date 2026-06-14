@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Circuit Voice Agent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #060b18; color: #e2e8f0; padding: 24px;
+    min-height: 100vh;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+  h1 span { color: #6366f1; }
+  .sub { color: #475569; font-size: 13px; margin-bottom: 24px; }
+  .card {
+    background: #0b1120; border: 1.5px solid #1e293b; border-radius: 14px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 13px; font-weight: 700; color: #6366f1; text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 14px;
+  }
+  label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; font-weight: 600; }
+  input, textarea, select {
+    width: 100%; background: #060b18; border: 1.5px solid #1e293b; border-radius: 9px;
+    padding: 9px 12px; color: #e2e8f0; font-size: 13px; outline: none; font-family: inherit;
+    margin-bottom: 12px;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none;
+    border-radius: 10px; padding: 10px 18px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1.5px solid #334155; color: #94a3b8; }
+  button.danger { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+  .pill {
+    display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px;
+    font-weight: 700; margin-right: 6px;
+  }
+  .pill.intro, .pill.rapport { background: #6366f118; color: #818cf8; border: 1px solid #6366f140; }
+  .pill.pitch { background: #0ea5e918; color: #38bdf8; border: 1px solid #0ea5e940; }
+  .pill.objection { background: #f59e0b18; color: #fbbf24; border: 1px solid #f59e0b40; }
+  .pill.booking, .pill.confirmed { background: #10b98118; color: #34d399; border: 1px solid #10b98140; }
+  .pill.ended { background: #6b728018; color: #94a3b8; border: 1px solid #6b728040; }
+  .call-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px; border-bottom: 1px solid #1e293b; font-size: 13px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .call-row:hover { background: #111827; }
+  .call-row:last-child { border-bottom: none; }
+  .contact-count { font-size: 12px; color: #475569; margin-top: 8px; }
+  #status-msg { font-size: 12px; margin-top: 10px; color: #6ee7b7; min-height: 16px; }
+  #status-msg.error { color: #f87171; }
+  .transcript-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .transcript-modal.open { display: flex; }
+  .transcript-content {
+    background: #0b1120; border: 1.5px solid #1e293b; border-radius: 14px;
+    max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 20px;
+  }
+  .msg-bubble { margin-bottom: 10px; padding: 8px 12px; border-radius: 10px; font-size: 13px; }
+  .msg-bubble.agent { background: #111827; border: 1px solid #1e293b; }
+  .msg-bubble.prospect { background: #0f1f3d; border: 1px solid #1e3a6e; }
+  .msg-role { font-size: 10px; color: #475569; margin-bottom: 3px; font-weight: 700; text-transform: uppercase; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #1e293b; color: #64748b; }
+  .badge.ok { background: #052e16; color: #34d399; }
+  .badge.fail { background: #450a0a; color: #f87171; }
+  .login-box { max-width: 400px; margin: 100px auto; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="login-view" class="login-box">
+  <h1>Cloud Circuit <span>Voice Agent</span></h1>
+  <p class="sub">Enter your dashboard password</p>
+  <input id="password-input" type="password" placeholder="Dashboard password" style="margin-bottom:10px">
+  <button onclick="login()" style="width:100%">Enter</button>
+  <div id="login-error" style="color:#f87171; font-size:12px; margin-top:10px;"></div>
+</div>
+
+<div id="main-view" class="container" style="display:none">
+  <h1>Cloud Circuit <span>Voice Agent</span></h1>
+  <p class="sub">Configure your AI SDR, upload your call list, and launch campaigns</p>
+
+  <!-- Agent Configuration -->
+  <div class="card">
+    <h2>Agent Configuration</h2>
+    <div class="row">
+      <div>
+        <label>Agent Name</label>
+        <input id="cfg-agentName" placeholder="Sarah">
+      </div>
+      <div>
+        <label>Your Name (the closer)</label>
+        <input id="cfg-yourName" placeholder="e.g. Marcus">
+      </div>
+    </div>
+    <label>Company Name</label>
+    <input id="cfg-companyName" placeholder="Cloud Circuit">
+    <label>Product / Service</label>
+    <textarea id="cfg-productService"></textarea>
+    <label>Key Benefit / Hook</label>
+    <textarea id="cfg-keyBenefit"></textarea>
+    <div class="row">
+      <div>
+        <label>Target Business Type</label>
+        <input id="cfg-targetBusiness" placeholder="e.g. dental clinics">
+      </div>
+      <div>
+        <label>Delay Between Calls (seconds)</label>
+        <input id="cfg-callDelaySeconds" type="number" placeholder="45">
+      </div>
+    </div>
+    <label>Available Slots (comma-separated, e.g. "Monday 10:00 AM, Tuesday 2:00 PM")</label>
+    <textarea id="cfg-availableSlots"></textarea>
+    <button onclick="saveConfig()">Save Configuration</button>
+    <div id="config-status" style="font-size:12px; margin-top:8px; color:#6ee7b7;"></div>
+  </div>
+
+  <!-- Single Test Call -->
+  <div class="card">
+    <h2>Test Call (call yourself first!)</h2>
+    <div class="row">
+      <div>
+        <label>Phone Number</label>
+        <input id="test-phone" placeholder="+15551234567">
+      </div>
+      <div>
+        <label>Contact Name (optional)</label>
+        <input id="test-name" placeholder="e.g. John">
+      </div>
+    </div>
+    <label>Business Name (optional)</label>
+    <input id="test-business" placeholder="e.g. Smith Plumbing">
+    <button onclick="makeTestCall()">📞 Call This Number Now</button>
+    <div id="test-status" style="font-size:12px; margin-top:8px;"></div>
+  </div>
+
+  <!-- Contact List / Campaign -->
+  <div class="card">
+    <h2>Contact List & Campaign</h2>
+    <label>Upload CSV (columns: name, business, phone)</label>
+    <input id="csv-file" type="file" accept=".csv">
+    <button onclick="uploadContacts()">Upload</button>
+    <button class="secondary" onclick="clearContacts()">Clear List</button>
+    <div class="contact-count" id="contact-count">No contacts loaded</div>
+    <div style="margin-top:14px; display:flex; gap:10px;">
+      <button onclick="startCampaign()">▶ Start Campaign</button>
+      <button class="danger" onclick="stopCampaign()">■ Stop Campaign</button>
+    </div>
+    <div id="campaign-status" style="font-size:12px; margin-top:8px;"></div>
+  </div>
+
+  <!-- Call Log -->
+  <div class="card">
+    <h2>Call Log <button class="secondary" onclick="loadCalls()" style="float:right; padding:4px 12px; font-size:11px;">Refresh</button></h2>
+    <div id="call-list" style="margin-top:8px;">
+      <div class="sub">No calls yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- Transcript Modal -->
+<div class="transcript-modal" id="transcript-modal" onclick="if(event.target===this) this.classList.remove('open')">
+  <div class="transcript-content" id="transcript-content"></div>
+</div>
+
+<script>
+let DASHBOARD_PASSWORD = '';
+
+function login() {
+  const pw = document.getElementById('password-input').value;
+  DASHBOARD_PASSWORD = pw;
+  fetch('/api/config', { headers: { 'x-dashboard-password': pw } })
+    .then(r => {
+      if (!r.ok) throw new Error('Wrong password');
+      return r.json();
+    })
+    .then(data => {
+      sessionStorage.setItem('cc_pw', pw);
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('main-view').style.display = 'block';
+      populateConfig(data.config);
+      loadCalls();
+      loadContacts();
+    })
+    .catch(() => {
+      document.getElementById('login-error').textContent = 'Incorrect password';
+    });
+}
+
+function authHeaders() {
+  return { 'x-dashboard-password': DASHBOARD_PASSWORD, 'Content-Type': 'application/json' };
+}
+
+function populateConfig(cfg) {
+  document.getElementById('cfg-agentName').value = cfg.agentName || '';
+  document.getElementById('cfg-yourName').value = cfg.yourName || '';
+  document.getElementById('cfg-companyName').value = cfg.companyName || '';
+  document.getElementById('cfg-productService').value = cfg.productService || '';
+  document.getElementById('cfg-keyBenefit').value = cfg.keyBenefit || '';
+  document.getElementById('cfg-targetBusiness').value = cfg.targetBusiness || '';
+  document.getElementById('cfg-callDelaySeconds').value = cfg.callDelaySeconds || 45;
+  document.getElementById('cfg-availableSlots').value = (cfg.availableSlots || []).join(', ');
+}
+
+function saveConfig() {
+  const body = {
+    agentName: document.getElementById('cfg-agentName').value,
+    yourName: document.getElementById('cfg-yourName').value,
+    companyName: document.getElementById('cfg-companyName').value,
+    productService: document.getElementById('cfg-productService').value,
+    keyBenefit: document.getElementById('cfg-keyBenefit').value,
+    targetBusiness: document.getElementById('cfg-targetBusiness').value,
+    callDelaySeconds: parseInt(document.getElementById('cfg-callDelaySeconds').value) || 45,
+    availableSlots: document.getElementById('cfg-availableSlots').value.split(',').map(s => s.trim()).filter(Boolean),
+  };
+  fetch('/api/config', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+    .then(r => r.json())
+    .then(() => {
+      document.getElementById('config-status').textContent = '✓ Saved';
+      setTimeout(() => document.getElementById('config-status').textContent = '', 2000);
+    });
+}
+
+function makeTestCall() {
+  const phone = document.getElementById('test-phone').value;
+  const name = document.getElementById('test-name').value;
+  const business = document.getElementById('test-business').value;
+  if (!phone) { alert('Enter a phone number'); return; }
+
+  const statusEl = document.getElementById('test-status');
+  statusEl.textContent = 'Calling...';
+  statusEl.style.color = '#94a3b8';
+
+  fetch('/api/outbound-call', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ phone, name, business }) })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        statusEl.textContent = '✓ Call initiated - your phone should ring shortly';
+        statusEl.style.color = '#6ee7b7';
+        setTimeout(loadCalls, 3000);
+      } else {
+        statusEl.textContent = '✗ ' + (data.error || 'Failed');
+        statusEl.style.color = '#f87171';
+      }
+    })
+    .catch(e => {
+      statusEl.textContent = '✗ ' + e.message;
+      statusEl.style.color = '#f87171';
+    });
+}
+
+function uploadContacts() {
+  const fileInput = document.getElementById('csv-file');
+  if (!fileInput.files.length) { alert('Choose a CSV file'); return; }
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  fetch('/api/upload-contacts', { method: 'POST', headers: { 'x-dashboard-password': DASHBOARD_PASSWORD }, body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('contact-count').textContent = `${data.added} contacts added (${data.total} total)`;
+      } else {
+        alert(data.error);
+      }
+    });
+}
+
+function clearContacts() {
+  fetch('/api/contacts/clear', { method: 'POST', headers: authHeaders() })
+    .then(() => document.getElementById('contact-count').textContent = 'No contacts loaded');
+}
+
+function loadContacts() {
+  fetch('/api/contacts', { headers: authHeaders() })
+    .then(r => r.json())
+    .then(data => {
+      const pending = data.contacts.filter(c => c.status === 'pending').length;
+      document.getElementById('contact-count').textContent =
+        data.contacts.length ? `${data.contacts.length} contacts loaded (${pending} pending)` : 'No contacts loaded';
+    });
+}
+
+function startCampaign() {
+  fetch('/api/campaign/start', { method: 'POST', headers: authHeaders() })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('campaign-status').textContent = data.message;
+      document.getElementById('campaign-status').style.color = '#6ee7b7';
+    });
+}
+
+function stopCampaign() {
+  fetch('/api/campaign/stop', { method: 'POST', headers: authHeaders() })
+    .then(() => {
+      document.getElementById('campaign-status').textContent = 'Campaign stopped';
+      document.getElementById('campaign-status').style.color = '#fbbf24';
+    });
+}
+
+function loadCalls() {
+  fetch('/api/calls', { headers: authHeaders() })
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById('call-list');
+      if (!data.calls.length) {
+        container.innerHTML = '<div class="sub">No calls yet</div>';
+        return;
+      }
+      container.innerHTML = data.calls.map(c => `
+        <div class="call-row" onclick="showTranscript('${c.sid}')">
+          <div>
+            <strong>${c.contact.name || c.contact.phone}</strong>
+            ${c.contact.business ? `<span style="color:#475569"> · ${c.contact.business}</span>` : ''}
+            <div style="color:#475569; font-size:11px; margin-top:2px;">${c.contact.phone} · ${new Date(c.startedAt).toLocaleString()}</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="pill ${c.stage}">${c.stage}</span>
+            ${c.booking ? `<span class="badge ok" style="margin-top:4px; display:inline-block;">📅 ${c.booking.slot}</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    });
+}
+
+function showTranscript(sid) {
+  fetch('/api/calls/' + sid, { headers: authHeaders() })
+    .then(r => r.json())
+    .then(data => {
+      const content = document.getElementById('transcript-content');
+      let html = `<h2 style="margin-bottom:14px;">${data.contact.name || data.contact.phone} ${data.contact.business ? '· ' + data.contact.business : ''}</h2>`;
+      if (data.booking) {
+        html += `<div class="badge ok" style="margin-bottom:14px; display:inline-block; padding:6px 12px;">📅 Booked: ${data.booking.slot} (${data.booking.email})</div>`;
+      }
+      data.transcript.forEach(m => {
+        html += `<div class="msg-bubble ${m.role === 'agent' ? 'agent' : 'prospect'}">
+          <div class="msg-role">${m.role}</div>${m.text}
+        </div>`;
+      });
+      html += `<button class="secondary" style="margin-top:10px;" onclick="document.getElementById('transcript-modal').classList.remove('open')">Close</button>`;
+      content.innerHTML = html;
+      document.getElementById('transcript-modal').classList.add('open');
+    });
+}
+
+// Auto-restore session
+const savedPw = sessionStorage.getItem('cc_pw');
+if (savedPw) {
+  document.getElementById('password-input').value = savedPw;
+  login();
+}
+
+// Auto-refresh call list every 10s
+setInterval(() => {
+  if (document.getElementById('main-view').style.display !== 'none') loadCalls();
+}, 10000);
+</script>
+</body>
+</html>
